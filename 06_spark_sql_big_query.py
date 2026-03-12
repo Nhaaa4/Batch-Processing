@@ -25,6 +25,8 @@ spark = SparkSession.builder \
     .appName('test') \
     .getOrCreate()
 
+spark.conf.set('temporaryGcsBucket', 'dataproc-temp-asia-east1-371869632002-4jnra6cq')
+
 df_green = spark.read.parquet(input_green)
 
 df_green = df_green \
@@ -103,6 +105,20 @@ GROUP BY
 """)
 
 
-df_result.coalesce(1).write.mode("overwrite").parquet(output)
+df_result.write.format('bigquery') \
+    .option('table', output) \
+    .save()
 
 spark.stop()
+
+"""
+* gcloud dataproc jobs submit pyspark \
+*    --cluster=nyc-taxi-cluster \
+*    --region=asia-east1 \
+*    --jars=gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar \
+*    gs://data_lake_nyc_taxi/code/06_spark_sql_big_query.py \
+*    -- \
+*        --input_green=gs://data_lake_nyc_taxi/pq/green/2020/*/ \
+*        --input_yellow=gs://data_lake_nyc_taxi/pq/yellow/2020/*/ \
+*        --output=trips_data_all.reports-2020
+"""
